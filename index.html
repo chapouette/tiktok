@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Intro TikTok-Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet" />
+<style>
+  html, body {
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    font-family: 'Montserrat', sans-serif;
+    overflow:hidden;
+    background: linear-gradient(-45deg, #0a0a0a, #3a0a5e, #0a0a0a, #5e0a7f);
+    background-size: 400% 400%;
+    animation: gradient 20s ease infinite;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    color:white;
+    text-align:center;
+  }
+
+  @keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  h1 {
+    font-size:3em;
+    margin:0.2em 0;
+  }
+
+  p {
+    font-size:1em;
+    max-width:600px;
+    margin:0.5em auto;
+    line-height:1.5em;
+  }
+
+  button {
+    margin-top:2em;
+    padding: 0.8em 2em;
+    font-size:0.8em;
+    border:none;
+    border-radius:5px;
+    background: rgba(255,255,255,0.2);
+    color:white;
+    text-transform: uppercase;
+    cursor:pointer;
+    transition: all 0.3s ease;
+    font-family: 'Montserrat';
+  }
+
+  button:hover {
+    background: rgba(255,255,255,0.4);
+  }
+
+  .emoji {
+    font-size:3em;
+    animation: floatEmoji 4s ease-in-out infinite alternate;
+  }
+
+  @keyframes floatEmoji {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-15px); }
+  }
+</style>
+</head>
+<body>
+  <div>
+    <div class="emoji">🤖📱🎯</div>
+    <h1>Wie dich die KI sieht</h1>
+    <p>Jeder Klick, den du in sozialen Netzwerken machst, erzählt der KI ein bisschen mehr über dich. Deine Likes, Kommentare und Shares formen, was sie über deine Interessen denkt!</p>
+    <p>Du wirst mit 20 verschiedenen Inhalten interagieren, so wie du es auf deinem Telefon tun würdest.</p>
+    <button id="startBtn">los geht's 🚀</button>
+  </div>
+
+  <script>
+    document.getElementById('startBtn').addEventListener('click', ()=>{
+      window.location.href = 'digital.html';
+    });
+  </script>
+</body>
+</html>

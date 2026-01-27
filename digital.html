@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>TikTok-Simulator Modern</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: 'Montserrat', Arial, sans-serif;
+      background: #000;
+    }
+
+    .app {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    .image-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-width: 0;
+    }
+
+    .post-frame{
+      width: 80%;
+      max-width: 400px;
+      aspect-ratio: 3/4;
+      border-radius: 20px;
+      overflow: hidden;
+
+      background: #0f0f0f;
+      border: 2px solid rgba(255,255,255,0.18);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .post-frame.portrait img,
+    .post-frame.portrait iframe{
+      width: 100%;
+      height: 100%;
+    }
+
+    .post-frame.portrait img{
+      object-fit: cover;
+    }
+
+    .post-frame.landscape{
+      background: #2a2a2a;
+    }
+
+    .post-frame.landscape img{
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .post-frame.landscape iframe{
+      width: 100%;
+      height: 100%;
+      transform: scale(0.92);
+      border-radius: 12px;
+    }
+
+    #postMedia{
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .post-frame img,
+    .post-frame iframe{
+      border: 0;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    .icons {
+      position: absolute;
+      right: calc(50% - 320px);
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .icon-btn {
+      background: rgba(255,255,255,0.7);
+      border: none;
+      color: black;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .icon-btn:hover {
+      background: white;
+      color: red;
+    }
+
+    .icon-btn:disabled{
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .ai-section {
+      width: 320px;
+      max-width: 36vw;
+      background: #222;
+      padding: 20px;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      min-width: 260px;
+    }
+
+    .ai-header {
+      text-align: center;
+      font-size: 1.6em;
+      margin-bottom: 10px;
+    }
+
+    #log {
+      flex: 1;
+      background: #1d1d1d;
+      padding: 10px;
+      border-radius: 12px;
+      font-size: 0.9em;
+      overflow-y: auto;
+      min-height: 0;
+      scroll-behavior: smooth;
+    }
+
+    #quizOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      padding: 18px;
+      box-sizing: border-box;
+    }
+
+    #quizContent {
+      width: min(920px, 100%);
+      max-height: calc(100vh - 36px);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: auto;
+      padding: 0;
+    }
+
+    #quizBox {
+      background: #222;
+      padding: 22px;
+      border-radius: 20px;
+      color: white;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    #quizResults {
+      color: white;
+      text-align: left;
+      background: #333;
+      padding: 18px;
+      border-radius: 12px;
+      box-sizing: border-box;
+    }
+
+    .option-btn {
+      padding: 15px;
+      border: none;
+      border-radius: 10px;
+      background: #9b59b6;
+      color: white;
+      cursor: pointer;
+      font-size: 1.05em;
+      transition: 0.3s;
+      width: 100%;
+    }
+
+    .option-btn:disabled {
+      opacity: 0.75;
+      cursor: not-allowed;
+    }
+
+    #replayBtn {
+      margin-top: 14px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #9b59b6;
+      text-align: center;
+    }
+
+    #replayBtn:hover {
+      color: #fff;
+    }
+
+    @media (max-width: 860px){
+      .app{
+        flex-direction: column;
+      }
+      .ai-section{
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        height: 32vh;
+      }
+      .image-area{
+        height: 68vh;
+      }
+      .icons{
+        right: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      .post-frame{
+        width: 86%;
+        max-width: 420px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="image-area">
+      <div id="postFrame" class="post-frame">
+        <div id="postMedia"></div>
+      </div>
+
+      <div class="icons">
+        <button class="icon-btn" data-action="like"><span class="material-icons">favorite</span></button>
+        <button class="icon-btn" data-action="comment"><span class="material-icons">comment</span></button>
+        <button class="icon-btn" data-action="skip"><span class="material-icons">cancel</span></button>
+        <button class="icon-btn" data-action="share"><span class="material-icons">share</span></button>
+      </div>
+    </div>
+
+    <div class="ai-section">
+      <div class="ai-header">🤖 Was die KI sieht</div>
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <div id="quizOverlay">
+    <div id="quizContent">
+      <div id="quizBox"></div>
+      <div id="quizResults"></div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const categories = [
+        "Humor",
+        "Musik",
+        "Tiere",
+        "Sport",
+        "Gaming",
+        "Kochen",
+        "Movie"
+      ];
+
+      const content = [
+        { cat: "Humor", type: "iframe", src: "https://giphy.com/embed/8rN9VXNb7dfU792YQt", width: 270, height: 480 },
+        { cat: "Humor", type: "iframe", src: "https://giphy.com/embed/JIX9t2j0ZTN9S", width: 270, height: 480 },
+        { cat: "Humor", type: "iframe", src: "https://giphy.com/embed/l1rrKjeprm2VsbCc1w" },
+
+        { cat: "Musik", type: "iframe", src: "https://giphy.com/embed/Ii4CrLzLooAjryNiNk", width: 270, height: 480 },
+        { cat: "Musik", type: "iframe", src: "https://giphy.com/embed/TKutFlo2v9KN7zwUbY", width: 270, height: 480 },
+        { cat: "Musik", type: "iframe", src: "https://giphy.com/embed/kxfQnpf3UGAaAUajXn", width: 270, height: 480 },
+
+        { cat: "Sport", type: "iframe", src: "https://giphy.com/embed/8PEe5JNCsV6HPqeLpC", width: 270, height: 480 },
+        { cat: "Sport", type: "iframe", src: "https://giphy.com/embed/316JKVkNXyl1YqBTWj", width: 270, height: 480 },
+        { cat: "Sport", type: "img", src: "gym.jpg", width: 270, height: 480 },
+
+        { cat: "Tiere", type: "iframe", src: "https://giphy.com/embed/Vi0Ws3t4JSLOgdkaBq", width: 270, height: 480 },
+        { cat: "Tiere", type: "img", src: "cat.jpg", width: 270, height: 480 },
+        { cat: "Tiere", type: "img", src: "dog.jpg", width: 270, height: 480 },
+
+        { cat: "Gaming", type: "iframe", src: "https://giphy.com/embed/V5l5ZucxUc7kNTaXWK", width: 270, height: 480 },
+        { cat: "Gaming", type: "iframe", src: "https://giphy.com/embed/ysiCYZUJkW3XRb7k9K", width: 270, height: 480 },
+        { cat: "Gaming", type: "iframe", src: "https://giphy.com/embed/8UiYQWoZgafFJaN9hw", width: 270, height: 480 },
+
+        { cat: "Kochen", type: "img", src: "cake.jpg", width: 270, height: 480 },
+        { cat: "Kochen", type: "img", src: "cookies.jpg", width: 270, height: 480 },
+
+        { cat: "Movie", type: "img", src: "movie.jpg", width: 270, height: 480 },
+        { cat: "Movie", type: "img", src: "netflix.jpg", width: 270, height: 480 },
+        { cat: "Movie", type: "img", src: "strangerthing.jpg", width: 270, height: 480 }
+      ];
+
+      let currentIndex = 0;
+      let weights = {};
+      let clicks = 0;
+      let currentPost;
+      let quizDisplayed = false;
+
+      // ✅ Timing additions
+      let postShownAt = 0;      // timestamp when current post started being shown
+      let perPostTimings = [];  // store time per post + action (optional, used in quiz summary)
+
+      // Statt endlos zyklisch: einmalige Reihenfolge, jede Kachel genau 1x
+      let shuffledContent = [];
+      let finished = false;
+
+      function shuffle(array){
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+
+      function init(){
+        categories.forEach(c => weights[c] = 1);
+        clicks = 0;
+        quizDisplayed = false;
+        finished = false;
+
+        // ✅ reset timings
+        perPostTimings = [];
+        postShownAt = 0;
+
+        // Jede Kachel genau einmal, zufällige Reihenfolge
+        shuffledContent = shuffle([...content]);
+        currentIndex = 0;
+
+        document.getElementById('log').innerHTML = '';
+        document.getElementById('quizBox').innerHTML = '';
+        document.getElementById('quizResults').innerHTML = '';
+        document.getElementById('quizOverlay').style.display = 'none';
+
+        showPost(currentIndex);
+        toggleInteraction(true);
+      }
+
+      function setFrameMode(post){
+        const frame = document.getElementById('postFrame');
+        frame.classList.remove('portrait', 'landscape');
+        const isLandscape = (post.width && post.height) ? (post.width > post.height) : false;
+        frame.classList.add(isLandscape ? 'landscape' : 'portrait');
+      }
+
+      // ✅ Start timer when media is actually ready (better than just "shownPost called")
+      function markPostShownNow(){
+        postShownAt = performance.now();
+      }
+
+      function showPost(index){
+        currentPost = shuffledContent[index];
+        setFrameMode(currentPost);
+
+        const mediaHost = document.getElementById('postMedia');
+        mediaHost.innerHTML = '';
+
+        let el;
+
+        if(currentPost.type === "img"){
+          el = document.createElement('img');
+          el.src = currentPost.src;
+          el.alt = currentPost.cat || "Post";
+
+          // Start timing when the image finishes loading
+          el.onload = () => markPostShownNow();
+          el.onerror = () => markPostShownNow(); // fallback if file missing
+
+          mediaHost.appendChild(el);
+          requestAnimationFrame(() => { el.style.opacity = 1; });
+
+          // fallback in case onload doesn't fire quickly (cached edge cases)
+          setTimeout(() => { if(!postShownAt) markPostShownNow(); }, 0);
+
+          return;
+        }
+
+        if(currentPost.type === "iframe"){
+          el = document.createElement('iframe');
+          el.src = currentPost.src;
+          el.allowFullscreen = true;
+
+          // Start timing when iframe reports load
+          el.onload = () => markPostShownNow();
+
+          mediaHost.appendChild(el);
+          requestAnimationFrame(() => { el.style.opacity = 1; });
+
+          // fallback if onload is delayed/blocked
+          setTimeout(() => { if(!postShownAt) markPostShownNow(); }, 150);
+
+          return;
+        }
+      }
+
+      function appendLog(html){
+        const log = document.getElementById('log');
+        const wasAtBottom = (log.scrollHeight - log.scrollTop - log.clientHeight) < 12;
+        log.insertAdjacentHTML('beforeend', html);
+        if (wasAtBottom){
+          log.scrollTop = log.scrollHeight;
+        }
+      }
+
+      function maybeEndOrNext(){
+        // Wenn wir am Ende sind: Quiz anzeigen (falls noch nicht)
+        if (currentIndex >= shuffledContent.length - 1){
+          finished = true;
+          if (!quizDisplayed){
+            quizDisplayed = true;
+            showQuiz();
+          }
+          return;
+        }
+
+        // Sonst nächstes Element
+        currentIndex += 1;
+
+        // ✅ reset timer before next post loads
+        postShownAt = 0;
+
+        showPost(currentIndex);
+
+        // Optional: Quiz auch schon nach 20 Klicks anzeigen,
+        // aber nur wenn noch nicht gezeigt.
+        if(clicks >= 20 && !quizDisplayed){
+          quizDisplayed = true;
+          showQuiz();
+        }
+      }
+
+      document.querySelector('.image-area').addEventListener('click', e => {
+        e.stopPropagation();
+      });
+
+      document.querySelector('.icons').addEventListener('click', e => {
+        const btn = e.target.closest('.icon-btn');
+        if(!btn) return;
+
+        const action = btn.dataset.action;
+
+        // ✅ compute time spent before clicking an action
+        const now = performance.now();
+        const timeSpentMs = postShownAt ? (now - postShownAt) : 0;
+        const timeSpentSec = (timeSpentMs / 1000).toFixed(2);
+
+        const interpretations = {
+          like: "Der Nutzer interessiert sich für dieses Thema.",
+          comment: "Der Nutzer interagiert mit dem Post – starkes Interesse.",
+          share: "Der Nutzer hält den Post für teilenswert.",
+          skip: "Der Nutzer zeigt wenig Interesse an diesem Thema."
+        };
+
+        const icons = {
+          like: "❤️",
+          comment: "💬",
+          share: "🔗",
+          skip: "⏭️"
+        };
+
+        const boost = { like: 1, comment: 2, share: 3, skip: 0 }[action];
+
+        if(weights[currentPost.cat] !== undefined){
+          weights[currentPost.cat] += boost;
+        }
+
+        // ✅ store timings (optional but useful)
+        perPostTimings.push({
+          index: currentIndex,
+          cat: currentPost.cat,
+          action,
+          timeSpentMs,
+          src: currentPost.src,
+          type: currentPost.type
+        });
+
+        appendLog(`
+          <div>
+            ${icons[action]} Kategorie <strong>${currentPost.cat}</strong> wurde
+            ${action==="like" ? "geliked" : action==="comment" ? "kommentiert" : action==="share" ? "geteilt" : "übersprungen"}
+            <br><em>⏱️ Zeit bis Klick: ${timeSpentSec}s</em>
+            <br>→ ${interpretations[action]}
+          </div><br>
+        `);
+
+        clicks++;
+        maybeEndOrNext();
+      });
+
+      function topCategories(n){
+        return Object.entries(weights)
+          .map(([cat, score]) => ({ cat, score }))
+          .sort((a,b)=> b.score - a.score)
+          .slice(0, n);
+      }
+
+      // ✅ helper: average time per category
+      function avgTimeByCategory(){
+        const map = {}; // cat -> {sum, count}
+        perPostTimings.forEach(t => {
+          if(!map[t.cat]) map[t.cat] = { sum: 0, count: 0 };
+          map[t.cat].sum += t.timeSpentMs || 0;
+          map[t.cat].count += 1;
+        });
+        return Object.entries(map).map(([cat, v]) => ({
+          cat,
+          avgSec: v.count ? (v.sum / v.count / 1000) : 0,
+          count: v.count
+        })).sort((a,b)=> b.avgSec - a.avgSec);
+      }
+
+      function showQuiz(){
+        toggleInteraction(false);
+
+        const ads = {
+          "Humor":"Abo für eine Comedy-Plattform",
+          "Musik":"Geräuschunterdrückende Kopfhörer",
+          "Tiere":"Spielzeug & Futter für Haustiere",
+          "Sport":"Sport-T-Shirt / Fitness-Deal",
+          "Gaming":"Rabatt auf ein Gaming-Setup",
+          "Kochen":"Moderne Küchenutensilien",
+          "Movie":"Streaming-Abo / Film-Empfehlungen"
+        };
+
+        const top3 = topCategories(3);
+        const fallbackCats = categories.filter(c => !top3.some(t => t.cat === c));
+        while(top3.length < 3 && fallbackCats.length){
+          top3.push({ cat: fallbackCats.shift(), score: 0 });
+        }
+
+        const correctCat = top3[0].cat;
+        const correctAd = ads[correctCat] || "Personalisierte Werbung";
+
+        const optionAds = top3.map(t => ads[t.cat] || "Personalisierte Werbung");
+
+        const uniqueOptions = [...new Set(optionAds)];
+        if(uniqueOptions.length < 3){
+          const pool = categories.map(c => ads[c]).filter(Boolean).filter(a => !uniqueOptions.includes(a));
+          while(uniqueOptions.length < 3 && pool.length){
+            uniqueOptions.push(pool.shift());
+          }
+        }
+
+        const options = shuffle([...uniqueOptions]).slice(0,3);
+
+        const overlay = document.getElementById('quizOverlay');
+        const box = document.getElementById('quizBox');
+        overlay.style.display = "flex";
+
+        box.innerHTML = `
+          <div style="font-size:1.1em;margin-bottom:12px;">
+            💡 Welche Werbung wird dir die KI als Nächstes zeigen?
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            ${options.map(opt => `<button class="option-btn" data-answer="${opt}">${opt}</button>`).join('')}
+          </div>
+        `;
+
+        document.getElementById('quizResults').innerHTML = '';
+
+        document.querySelectorAll('.option-btn').forEach(btn => {
+          btn.onclick = () => {
+            document.querySelectorAll('.option-btn').forEach(b => {
+              b.disabled = true;
+              if(b.dataset.answer === correctAd){
+                b.style.background = "#4CAF50";
+              } else if(b === btn){
+                b.style.background = "#F44336";
+              }
+            });
+
+            const total = Object.values(weights).reduce((a,b)=>a+b,0) || 1;
+
+            // ✅ add timing summary to results
+            const avgByCat = avgTimeByCategory();
+            const timingHtml = avgByCat.length
+              ? `
+                <div style="margin:12px 0; padding:12px; background:#222; border-radius:10px;">
+                  <strong>⏱️ Durchschnittliche Zeit bis Aktion (pro Kategorie):</strong><br>
+                  ${avgByCat.map(x => `${x.cat}: ${x.avgSec.toFixed(2)}s (n=${x.count})`).join('<br>')}
+                </div>
+              `
+              : `
+                <div style="margin:12px 0; padding:12px; background:#222; border-radius:10px;">
+                  <strong>⏱️ Zeitdaten:</strong><br>
+                  Noch keine Daten gesammelt.
+                </div>
+              `;
+
+            const resultsEl = document.getElementById('quizResults');
+            resultsEl.innerHTML = `
+              <p style="margin-top:0;">
+                Hier ist, was die KI aus deinem Verhalten ableitet. Danach können diese Daten
+                an Unternehmen weitergegeben werden – und Werbung wird exakt auf dich zugeschnitten.
+              </p>
+
+              <div style="margin:12px 0; padding:12px; background:#222; border-radius:10px;">
+                <strong>Top-3 Interessen (geschätzt):</strong><br>
+                1) ${top3[0].cat} (${(top3[0].score/total*100).toFixed(1)}%)<br>
+                2) ${top3[1].cat} (${(top3[1].score/total*100).toFixed(1)}%)<br>
+                3) ${top3[2].cat} (${(top3[2].score/total*100).toFixed(1)}%)
+              </div>
+
+              ${timingHtml}
+
+              <div style="margin-top:10px;">
+                <strong>Details:</strong><br>
+                ${categories.map(cat => `<strong>${cat}</strong>: ${(weights[cat]/total*100).toFixed(1)}%`).join('<br>')}
+              </div>
+
+              <div id="replayBtn">🔄 NOCHMAL SPIELEN</div>
+            `;
+
+            resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
+
+            document.getElementById('replayBtn').onclick = () => {
+              overlay.style.display = 'none';
+              init();
+            };
+          };
+        });
+      }
+
+      function toggleInteraction(enable){
+        document.querySelectorAll('.icon-btn').forEach(b => b.disabled = !enable);
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
