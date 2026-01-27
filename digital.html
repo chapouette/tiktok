@@ -793,19 +793,7 @@
 
               ${timingHtml}
 
-              <div style="margin-top:10px;">
-                <strong>Details (alle Kategorien):</strong><br>
-                ${table.map(t => {
-                  const a = t.actions;
-                  return `
-                    <strong>${t.cat}</strong>:
-                    Score/Imp ${t.scorePerImp.toFixed(2)},
-                    Dwell ${t.avgDwellSec.toFixed(2)}s,
-                    Imp ${t.impressions},
-                    L${a.like}/C${a.comment}/S${a.share}/K${a.skip}
-                  `;
-                }).join('<br>')}
-              </div>
+            
 
               <div id="replayBtn">🔄 NOCHMAL SPIELEN</div>
             `;
@@ -829,3 +817,4 @@
   </script>
 </body>
 </html>
+
