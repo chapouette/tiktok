@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <title>TikTok-Simulator Modern</title>
+  <title>TikTok-Simulator Modern – bessere Ad-Personalisierung</title>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
 
@@ -97,6 +97,7 @@
       display: flex;
       flex-direction: column;
       gap: 15px;
+      z-index: 10;
     }
 
     .icon-btn {
@@ -277,6 +278,9 @@
 
   <script>
     (function(){
+      // -----------------------------
+      // 1) DATA
+      // -----------------------------
       const categories = [
         "Humor",
         "Musik",
@@ -316,19 +320,91 @@
         { cat: "Movie", type: "img", src: "strangerthing.jpg", width: 270, height: 480 }
       ];
 
+      // -----------------------------
+      // 2) PERSONALIZATION MODEL
+      // -----------------------------
+      // We track:
+      // - impressions per category (fairness if some cats have fewer items)
+      // - action counts (like/comment/share/skip)
+      // - dwell time per category (avg seconds)
+      // - score per category (actions + dwell)
+      //
+      // Key improvements vs old version:
+      // - skip has a NEGATIVE effect
+      // - dwell time influences interest (even on skip)
+      // - normalize by impressions so categories with fewer posts aren't punished
+      const stats = {}; // cat -> {impressions, score, dwellSumMs, actions:{like,comment,share,skip}}
+
+      // Scoring knobs (easy to tweak)
+      const ACTION_POINTS = { like: 2, comment: 4, share: 6, skip: -2 };
+      const DWELL_CLAMP_SEC = 8;               // cap dwell signal so "walk away" doesn't dominate
+      const DWELL_POINTS_MAX = 2.5;            // up to +2.5 points per post from dwell
+      const FAST_SKIP_SEC = 1.0;               // extra penalty if skipping too fast
+      const FAST_SKIP_PENALTY = -1.0;
+
+      // -----------------------------
+      // 3) AD TEMPLATES (single + combo)
+      // -----------------------------
+      // Instead of one generic ad per category, we:
+      // - have 2 variants per category depending on "strength"
+      // - have a few combo ads for the top-2 (feels more adapted)
+      //
+      // The quiz will pick the best matching template based on top categories and strength.
+      const AD_LIBRARY = {
+        single: {
+          Humor: {
+            strong: "Comedy-Abo + Live-Show Tickets",
+            weak:   "Kurze Comedy-Clips & Creator-Empfehlungen"
+          },
+          Musik: {
+            strong: "Noise-Cancelling Kopfhörer + Musik-Abo",
+            weak:   "Playlist-Empfehlungen & Konzert-Tipps"
+          },
+          Tiere: {
+            strong: "Premium-Futter + Spielzeug für Haustiere",
+            weak:   "Süße Tier-Accounts & Adoptions-Infos"
+          },
+          Sport: {
+            strong: "Fitness-Deal: Smartwatch + Trainingsplan",
+            weak:   "Sportshirt-Angebote & lokale Kurse"
+          },
+          Gaming: {
+            strong: "Gaming-Setup Rabatt (GPU/Headset/Chair)",
+            weak:   "Game-Releases & Indie-Deals"
+          },
+          Kochen: {
+            strong: "Airfryer + Küchenbundle (Messer/Tools)",
+            weak:   "Schnelle Rezepte & Küchen-Hacks"
+          },
+          Movie: {
+            strong: "Streaming-Bundle + Kino-Gutscheine",
+            weak:   "Film-/Serien-Empfehlungen (dein Geschmack)"
+          }
+        },
+        combo: [
+          { a: "Musik",  b: "Sport",  ad: "Sport-Kopfhörer + Lauf-Playlist Bundle" },
+          { a: "Movie",  b: "Humor",  ad: "Comedy-Serien Paket + Streaming-Probeabo" },
+          { a: "Gaming", b: "Movie",  ad: "Game-Verfilmungen + Gamer-Streaming Bundle" },
+          { a: "Tiere",  b: "Humor",  ad: "Funny-Pets Creator Bundle + Merch-Deals" },
+          { a: "Kochen", b: "Movie",  ad: "Snack-Box Abo für Filmabende" },
+          { a: "Gaming", b: "Musik",  ad: "Gaming-Headset + Music EQ Presets" }
+        ]
+      };
+
+      // -----------------------------
+      // 4) STATE / FEED LOGIC
+      // -----------------------------
       let currentIndex = 0;
-      let weights = {};
       let clicks = 0;
-      let currentPost;
+      let currentPost = null;
       let quizDisplayed = false;
-
-      // ✅ Timing additions
-      let postShownAt = 0;      // timestamp when current post started being shown
-      let perPostTimings = [];  // store time per post + action (optional, used in quiz summary)
-
-      // Statt endlos zyklisch: einmalige Reihenfolge, jede Kachel genau 1x
-      let shuffledContent = [];
       let finished = false;
+
+      let shuffledContent = [];
+
+      // Timing
+      let postShownAt = 0;
+      let perPostTimings = []; // each action record
 
       function shuffle(array){
         for (let i = array.length - 1; i > 0; i--) {
@@ -339,16 +415,23 @@
       }
 
       function init(){
-        categories.forEach(c => weights[c] = 1);
+        // init stats
+        categories.forEach(cat => {
+          stats[cat] = {
+            impressions: 0,
+            score: 0,
+            dwellSumMs: 0,
+            actions: { like: 0, comment: 0, share: 0, skip: 0 }
+          };
+        });
+
         clicks = 0;
         quizDisplayed = false;
         finished = false;
 
-        // ✅ reset timings
         perPostTimings = [];
         postShownAt = 0;
 
-        // Jede Kachel genau einmal, zufällige Reihenfolge
         shuffledContent = shuffle([...content]);
         currentIndex = 0;
 
@@ -368,7 +451,6 @@
         frame.classList.add(isLandscape ? 'landscape' : 'portrait');
       }
 
-      // ✅ Start timer when media is actually ready (better than just "shownPost called")
       function markPostShownNow(){
         postShownAt = performance.now();
       }
@@ -376,6 +458,9 @@
       function showPost(index){
         currentPost = shuffledContent[index];
         setFrameMode(currentPost);
+
+        // count impression immediately (the post is served)
+        if (stats[currentPost.cat]) stats[currentPost.cat].impressions += 1;
 
         const mediaHost = document.getElementById('postMedia');
         mediaHost.innerHTML = '';
@@ -387,16 +472,13 @@
           el.src = currentPost.src;
           el.alt = currentPost.cat || "Post";
 
-          // Start timing when the image finishes loading
           el.onload = () => markPostShownNow();
-          el.onerror = () => markPostShownNow(); // fallback if file missing
+          el.onerror = () => markPostShownNow();
 
           mediaHost.appendChild(el);
           requestAnimationFrame(() => { el.style.opacity = 1; });
 
-          // fallback in case onload doesn't fire quickly (cached edge cases)
           setTimeout(() => { if(!postShownAt) markPostShownNow(); }, 0);
-
           return;
         }
 
@@ -405,15 +487,12 @@
           el.src = currentPost.src;
           el.allowFullscreen = true;
 
-          // Start timing when iframe reports load
           el.onload = () => markPostShownNow();
 
           mediaHost.appendChild(el);
           requestAnimationFrame(() => { el.style.opacity = 1; });
 
-          // fallback if onload is delayed/blocked
           setTimeout(() => { if(!postShownAt) markPostShownNow(); }, 150);
-
           return;
         }
       }
@@ -422,13 +501,10 @@
         const log = document.getElementById('log');
         const wasAtBottom = (log.scrollHeight - log.scrollTop - log.clientHeight) < 12;
         log.insertAdjacentHTML('beforeend', html);
-        if (wasAtBottom){
-          log.scrollTop = log.scrollHeight;
-        }
+        if (wasAtBottom) log.scrollTop = log.scrollHeight;
       }
 
       function maybeEndOrNext(){
-        // Wenn wir am Ende sind: Quiz anzeigen (falls noch nicht)
         if (currentIndex >= shuffledContent.length - 1){
           finished = true;
           if (!quizDisplayed){
@@ -438,16 +514,11 @@
           return;
         }
 
-        // Sonst nächstes Element
         currentIndex += 1;
-
-        // ✅ reset timer before next post loads
         postShownAt = 0;
-
         showPost(currentIndex);
 
-        // Optional: Quiz auch schon nach 20 Klicks anzeigen,
-        // aber nur wenn noch nicht gezeigt.
+        // optional early quiz
         if(clicks >= 20 && !quizDisplayed){
           quizDisplayed = true;
           showQuiz();
@@ -458,38 +529,138 @@
         e.stopPropagation();
       });
 
+      // -----------------------------
+      // 5) SCORING
+      // -----------------------------
+      function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+      function addSignalForAction(cat, action, timeSpentMs){
+        const s = stats[cat];
+        if(!s) return;
+
+        // action points
+        const base = ACTION_POINTS[action] ?? 0;
+
+        // dwell points (0..DWELL_POINTS_MAX), using clamped seconds
+        const dwellSec = clamp((timeSpentMs || 0) / 1000, 0, DWELL_CLAMP_SEC);
+        const dwellPoints = (dwellSec / DWELL_CLAMP_SEC) * DWELL_POINTS_MAX;
+
+        // fast-skip penalty (makes "instant skip" clearly negative)
+        let fastSkipExtra = 0;
+        if (action === "skip" && dwellSec <= FAST_SKIP_SEC) fastSkipExtra = FAST_SKIP_PENALTY;
+
+        // total delta
+        const delta = base + dwellPoints + fastSkipExtra;
+
+        // update stats
+        s.score += delta;
+        s.dwellSumMs += (timeSpentMs || 0);
+        s.actions[action] += 1;
+      }
+
+      function interestTable(){
+        // Normalize by impressions so fewer posts doesn’t automatically lose.
+        // Also include average dwell as a “secondary” signal for explanation.
+        return categories.map(cat => {
+          const s = stats[cat];
+          const imp = Math.max(1, s.impressions);
+          const scorePerImp = s.score / imp;
+          const avgDwellSec = (s.dwellSumMs / imp) / 1000;
+          return { cat, scorePerImp, avgDwellSec, impressions: s.impressions, rawScore: s.score, actions: s.actions };
+        }).sort((a,b) => b.scorePerImp - a.scorePerImp);
+      }
+
+      function topN(n){
+        return interestTable().slice(0, n);
+      }
+
+      // -----------------------------
+      // 6) QUIZ: pick ad based on top-2 + strength
+      // -----------------------------
+      function pickPersonalizedAd(top){
+        // top: array from interestTable sorted desc
+        const t1 = top[0];
+        const t2 = top[1];
+
+        // strength heuristic: strong if scorePerImp is meaningfully above 0 and engagement not just dwell
+        // (You can tune this; it’s simple but “feels” better than always same ad.)
+        function isStrong(t){
+          const a = t.actions;
+          const engaged = (a.share + a.comment + a.like) - a.skip; // net engagement
+          return (t.scorePerImp >= 1.8) || (engaged >= 2 && t.avgDwellSec >= 1.5);
+        }
+
+        // Try a combo ad if top2 is a known pair and both are at least "somewhat present"
+        let combo = null;
+        if (t1 && t2){
+          combo = AD_LIBRARY.combo.find(x =>
+            (x.a === t1.cat && x.b === t2.cat) || (x.a === t2.cat && x.b === t1.cat)
+          );
+
+          // only use combo if top2 isn't tiny/noisy
+          const ok = (t1.scorePerImp > 0.3) && (t2.scorePerImp > 0.2);
+          if (!ok) combo = null;
+        }
+
+        if (combo){
+          return {
+            ad: combo.ad,
+            rule: "combo",
+            why: `Deine Top-2 Interessen sind <strong>${t1.cat}</strong> und <strong>${t2.cat}</strong> – deshalb eine Kombi-Werbung.`
+          };
+        }
+
+        // Otherwise choose strong/weak single ad for top1
+        const strength = isStrong(t1) ? "strong" : "weak";
+        const ad = (AD_LIBRARY.single[t1.cat] && AD_LIBRARY.single[t1.cat][strength]) || "Personalisierte Werbung";
+        return {
+          ad,
+          rule: `single-${strength}`,
+          why: `Dein stärkstes Interesse ist <strong>${t1.cat}</strong> – und die KI wählt eine ${strength === "strong" ? "stärkere" : "leichtere"} Werbevariante.`
+        };
+      }
+
+      function buildQuizOptions(correctAd){
+        // Build a pool of plausible ads (all singles + combos), then pick 2 distractors
+        const pool = [];
+
+        // singles
+        for (const cat of categories){
+          const obj = AD_LIBRARY.single[cat];
+          if (obj?.strong) pool.push(obj.strong);
+          if (obj?.weak)   pool.push(obj.weak);
+        }
+        // combos
+        AD_LIBRARY.combo.forEach(x => pool.push(x.ad));
+
+        // unique + not correct
+        const uniq = [...new Set(pool)].filter(x => x !== correctAd);
+
+        // pick 2 distractors, shuffle
+        shuffle(uniq);
+        const distractors = uniq.slice(0, 2);
+
+        const options = shuffle([correctAd, ...distractors]).slice(0, 3);
+        return options;
+      }
+
+      // -----------------------------
+      // 7) UI HANDLERS
+      // -----------------------------
       document.querySelector('.icons').addEventListener('click', e => {
         const btn = e.target.closest('.icon-btn');
         if(!btn) return;
 
         const action = btn.dataset.action;
 
-        // ✅ compute time spent before clicking an action
         const now = performance.now();
         const timeSpentMs = postShownAt ? (now - postShownAt) : 0;
         const timeSpentSec = (timeSpentMs / 1000).toFixed(2);
 
-        const interpretations = {
-          like: "Der Nutzer interessiert sich für dieses Thema.",
-          comment: "Der Nutzer interagiert mit dem Post – starkes Interesse.",
-          share: "Der Nutzer hält den Post für teilenswert.",
-          skip: "Der Nutzer zeigt wenig Interesse an diesem Thema."
-        };
+        // update model
+        addSignalForAction(currentPost.cat, action, timeSpentMs);
 
-        const icons = {
-          like: "❤️",
-          comment: "💬",
-          share: "🔗",
-          skip: "⏭️"
-        };
-
-        const boost = { like: 1, comment: 2, share: 3, skip: 0 }[action];
-
-        if(weights[currentPost.cat] !== undefined){
-          weights[currentPost.cat] += boost;
-        }
-
-        // ✅ store timings (optional but useful)
+        // store detail record
         perPostTimings.push({
           index: currentIndex,
           cat: currentPost.cat,
@@ -499,9 +670,18 @@
           type: currentPost.type
         });
 
+        const interpretations = {
+          like: "Interesse-Signal: positiv (Like) + Verweildauer.",
+          comment: "Interesse-Signal: sehr positiv (Kommentar) + Verweildauer.",
+          share: "Interesse-Signal: extrem positiv (Share) + Verweildauer.",
+          skip: "Interesse-Signal: negativ (Skip), aber Verweildauer zählt trotzdem etwas."
+        };
+
+        const icons = { like: "❤️", comment: "💬", share: "🔗", skip: "⏭️" };
+
         appendLog(`
           <div>
-            ${icons[action]} Kategorie <strong>${currentPost.cat}</strong> wurde
+            ${icons[action]} <strong>${currentPost.cat}</strong> wurde
             ${action==="like" ? "geliked" : action==="comment" ? "kommentiert" : action==="share" ? "geteilt" : "übersprungen"}
             <br><em>⏱️ Zeit bis Klick: ${timeSpentSec}s</em>
             <br>→ ${interpretations[action]}
@@ -512,16 +692,8 @@
         maybeEndOrNext();
       });
 
-      function topCategories(n){
-        return Object.entries(weights)
-          .map(([cat, score]) => ({ cat, score }))
-          .sort((a,b)=> b.score - a.score)
-          .slice(0, n);
-      }
-
-      // ✅ helper: average time per category
       function avgTimeByCategory(){
-        const map = {}; // cat -> {sum, count}
+        const map = {};
         perPostTimings.forEach(t => {
           if(!map[t.cat]) map[t.cat] = { sum: 0, count: 0 };
           map[t.cat].sum += t.timeSpentMs || 0;
@@ -537,40 +709,20 @@
       function showQuiz(){
         toggleInteraction(false);
 
-        const ads = {
-          "Humor":"Abo für eine Comedy-Plattform",
-          "Musik":"Geräuschunterdrückende Kopfhörer",
-          "Tiere":"Spielzeug & Futter für Haustiere",
-          "Sport":"Sport-T-Shirt / Fitness-Deal",
-          "Gaming":"Rabatt auf ein Gaming-Setup",
-          "Kochen":"Moderne Küchenutensilien",
-          "Movie":"Streaming-Abo / Film-Empfehlungen"
-        };
-
-        const top3 = topCategories(3);
-        const fallbackCats = categories.filter(c => !top3.some(t => t.cat === c));
-        while(top3.length < 3 && fallbackCats.length){
-          top3.push({ cat: fallbackCats.shift(), score: 0 });
-        }
-
-        const correctCat = top3[0].cat;
-        const correctAd = ads[correctCat] || "Personalisierte Werbung";
-
-        const optionAds = top3.map(t => ads[t.cat] || "Personalisierte Werbung");
-
-        const uniqueOptions = [...new Set(optionAds)];
-        if(uniqueOptions.length < 3){
-          const pool = categories.map(c => ads[c]).filter(Boolean).filter(a => !uniqueOptions.includes(a));
-          while(uniqueOptions.length < 3 && pool.length){
-            uniqueOptions.push(pool.shift());
-          }
-        }
-
-        const options = shuffle([...uniqueOptions]).slice(0,3);
-
         const overlay = document.getElementById('quizOverlay');
         const box = document.getElementById('quizBox');
+        const resultsEl = document.getElementById('quizResults');
         overlay.style.display = "flex";
+
+        const table = interestTable();
+        const top3 = table.slice(0,3);
+
+        // pick the ad using improved rules
+        const pick = pickPersonalizedAd(table);
+        const correctAd = pick.ad;
+
+        // options (correct + distractors)
+        const options = buildQuizOptions(correctAd);
 
         box.innerHTML = `
           <div style="font-size:1.1em;margin-bottom:12px;">
@@ -580,9 +732,13 @@
           <div style="display:flex;flex-direction:column;gap:12px;">
             ${options.map(opt => `<button class="option-btn" data-answer="${opt}">${opt}</button>`).join('')}
           </div>
+
+          <div style="margin-top:12px;font-size:0.9em;opacity:0.85;">
+            (Hinweis: Die KI nutzt jetzt auch <em>Verweildauer</em> und <em>negatives Skip-Signal</em>.)
+          </div>
         `;
 
-        document.getElementById('quizResults').innerHTML = '';
+        resultsEl.innerHTML = '';
 
         document.querySelectorAll('.option-btn').forEach(btn => {
           btn.onclick = () => {
@@ -595,9 +751,6 @@
               }
             });
 
-            const total = Object.values(weights).reduce((a,b)=>a+b,0) || 1;
-
-            // ✅ add timing summary to results
             const avgByCat = avgTimeByCategory();
             const timingHtml = avgByCat.length
               ? `
@@ -613,25 +766,45 @@
                 </div>
               `;
 
-            const resultsEl = document.getElementById('quizResults');
+            const topExplain = top3.map((t,i) => {
+              const a = t.actions;
+              const line1 = `${i+1}) <strong>${t.cat}</strong> — Score/Impression: <strong>${t.scorePerImp.toFixed(2)}</strong>, Avg Dwell: <strong>${t.avgDwellSec.toFixed(2)}s</strong>, Impressions: ${t.impressions}`;
+              const line2 = `&nbsp;&nbsp;Likes ${a.like} · Comments ${a.comment} · Shares ${a.share} · Skips ${a.skip}`;
+              return `${line1}<br>${line2}`;
+            }).join("<br><br>");
+
+            // show results with explicit "why this ad"
             resultsEl.innerHTML = `
               <p style="margin-top:0;">
-                Hier ist, was die KI aus deinem Verhalten ableitet. Danach können diese Daten
-                an Unternehmen weitergegeben werden – und Werbung wird exakt auf dich zugeschnitten.
+                Hier ist, was die KI aus deinem Verhalten ableitet – inklusive <strong>Verweildauer</strong>,
+                <strong>negativem Skip</strong> und einer <strong>Kombi-Werbung</strong>, wenn Top-2 gut passt.
               </p>
 
               <div style="margin:12px 0; padding:12px; background:#222; border-radius:10px;">
-                <strong>Top-3 Interessen (geschätzt):</strong><br>
-                1) ${top3[0].cat} (${(top3[0].score/total*100).toFixed(1)}%)<br>
-                2) ${top3[1].cat} (${(top3[1].score/total*100).toFixed(1)}%)<br>
-                3) ${top3[2].cat} (${(top3[2].score/total*100).toFixed(1)}%)
+                <strong>Warum genau diese Werbung?</strong><br>
+                ${pick.why}<br>
+                <em>Regel:</em> ${pick.rule}
+              </div>
+
+              <div style="margin:12px 0; padding:12px; background:#222; border-radius:10px;">
+                <strong>Top-3 Interessen (normalisiert):</strong><br><br>
+                ${topExplain}
               </div>
 
               ${timingHtml}
 
               <div style="margin-top:10px;">
-                <strong>Details:</strong><br>
-                ${categories.map(cat => `<strong>${cat}</strong>: ${(weights[cat]/total*100).toFixed(1)}%`).join('<br>')}
+                <strong>Details (alle Kategorien):</strong><br>
+                ${table.map(t => {
+                  const a = t.actions;
+                  return `
+                    <strong>${t.cat}</strong>:
+                    Score/Imp ${t.scorePerImp.toFixed(2)},
+                    Dwell ${t.avgDwellSec.toFixed(2)}s,
+                    Imp ${t.impressions},
+                    L${a.like}/C${a.comment}/S${a.share}/K${a.skip}
+                  `;
+                }).join('<br>')}
               </div>
 
               <div id="replayBtn">🔄 NOCHMAL SPIELEN</div>
