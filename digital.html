@@ -182,37 +182,39 @@ html, body {
 
 /* MOBILE */
 
-
-  @media(max-width:860px){
+@media(max-width:860px){
 
   .app {
     flex-direction:column;
     height:100vh;
   }
 
+  /* zone post */
   .image-area {
-    flex:0 0 auto;
-    height:60vh;
+    flex:0 0 55vh;   /* hauteur garantie */
     justify-content:center;
+    align-items:center;
   }
 
-  .ai-section {
-    flex:1;
-    width:100%;
-    max-width:100%;
-    min-width:0;
-    padding:12px;
-    min-height:140px;
-  }
-
+  /* post */
   .post-frame {
     width:90%;
     max-width:420px;
     height:100%;
-    max-height:420px;
+    max-height:480px;
     margin:8px;
   }
 
+  /* zone KI */
+  .ai-section {
+    flex:1;
+    width:100%;
+    max-width:100%;
+    padding:12px;
+    overflow:auto;
+  }
+
+  /* icônes */
   .icons { right:10px; }
 
   #log {
@@ -220,6 +222,7 @@ html, body {
     min-height:100px;
   }
 }
+
 </style>
 </head>
 <body>
@@ -282,7 +285,7 @@ document.getElementById('log').innerHTML=''; document.getElementById('quizBox').
 document.getElementById('quizOverlay').style.display='none'; showPost(currentIndex); toggleInteraction(true); }
 
 function markPostShownNow(){postShownAt=performance.now();}
-function showPost(idx){ function showPost(idx){
+ function showPost(idx){
   currentPost = shuffledContent[idx];
 
   const mediaHost = document.getElementById('postMedia');
