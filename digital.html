@@ -3,9 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>TikTok-Simulator Modern</title>
+
 <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
 html, body {
   margin:0; padding:0;
@@ -14,86 +17,204 @@ html, body {
   background:#000;
   overflow:hidden;
 }
+
+/* Layout */
 .app {
-  display:flex; width:100vw; height:100vh;
+  display:flex;
+  width:100vw;
+  height:100vh;
   flex-direction:row;
 }
+
 .image-area {
-  flex:1; display:flex;
-  justify-content:center; align-items:center;
-  position:relative; min-width:0; height:100%;
+  flex:1;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  position:relative;
+  min-width:0;
+  height:100%;
 }
+
 .post-frame {
-  width:360px; height:480px;
-  border-radius:20px; overflow:hidden;
+  width:360px;
+  height:480px;
+  border-radius:20px;
+  overflow:hidden;
   background:#0f0f0f;
   border:2px solid rgba(255,255,255,0.18);
   box-shadow:0 12px 40px rgba(0,0,0,0.55);
-  display:flex; align-items:center; justify-content:center;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   position:relative;
 }
+
 .post-frame img,
 .post-frame iframe {
-  width:100%; height:100%;
+  width:100%;
+  height:100%;
   object-fit:cover;
-  border:0; opacity:1;
+  border:0;
 }
-.post-frame iframe { pointer-events:none; }
 
+.post-frame iframe {
+  pointer-events:none;
+}
+
+/* Icons plus proches du post */
 .icons {
-  position:absolute; right:10px; top:50%;
+  position:absolute;
+  top:50%;
   transform:translateY(-50%);
-  display:flex; flex-direction:column; gap:15px; z-index:10;
+  display:flex;
+  flex-direction:column;
+  gap:15px;
+  z-index:10;
+
+  /* centré sur post + petit offset */
+  right:calc(50% - 180px - 70px);
 }
+
 .icon-btn {
-  background:rgba(255,255,255,0.7); border:none;
-  color:black; border-radius:50%; width:60px; height:60px;
-  display:flex; justify-content:center; align-items:center;
-  cursor:pointer; transition:0.3s;
+  background:rgba(255,255,255,0.7);
+  border:none;
+  color:black;
+  border-radius:50%;
+  width:60px;
+  height:60px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  cursor:pointer;
+  transition:0.3s;
 }
+
 .icon-btn:hover { background:white; color:red; }
 .icon-btn:disabled { opacity:0.6; cursor:not-allowed; }
 
+/* AI section */
 .ai-section {
-  width:320px; max-width:36vw;
-  background:#222; padding:20px; color:white;
-  display:flex; flex-direction:column;
-  box-sizing:border-box; min-width:260px;
+  width:320px;
+  max-width:36vw;
+  background:#222;
+  padding:20px;
+  color:white;
+  display:flex;
+  flex-direction:column;
+  box-sizing:border-box;
+  min-width:260px;
   overflow:hidden;
 }
-.ai-header { text-align:center; font-size:1.6em; margin-bottom:10px; flex-shrink:0; }
+
+.ai-header {
+  text-align:center;
+  font-size:1.6em;
+  margin-bottom:10px;
+  flex-shrink:0;
+}
+
 #log {
-  display:flex; flex-direction:column;
-  gap:6px; font-size:0.9em; overflow-y:auto;
-  flex:1; min-height:180px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:0.9em;
+  overflow-y:auto;
+  flex:1;
+  min-height:180px;
 }
 
 /* Quiz */
-#quizOverlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); display:none; justify-content:center; align-items:center; z-index:9999; padding:18px; box-sizing:border-box; }
-#quizContent { width:min(920px,100%); max-height:calc(100vh-36px); display:flex; flex-direction:column; gap:12px; overflow:auto; padding:0; }
-#quizBox { background:#222; padding:22px; border-radius:20px; color:white; text-align:center; box-sizing:border-box; }
-#quizResults { color:white; text-align:left; background:#333; padding:18px; border-radius:12px; box-sizing:border-box; }
-.option-btn { padding:15px; border:none; border-radius:10px; background:#9b59b6; color:white; cursor:pointer; font-size:1.05em; width:100%; transition:0.3s; }
-.option-btn:disabled { opacity:0.75; cursor:not-allowed; }
-#replayBtn { margin-top:14px; cursor:pointer; font-weight:bold; color:#9b59b6; text-align:center; }
-#replayBtn:hover { color:#fff; }
-
-/* MOBILE */
-
-  @media(max-width:860px){
-  .app { flex-direction:column; }
-  .image-area { flex:7; justify-content:center; }
-  .ai-section { flex:3; width:100%; max-width:100%; min-width:0; padding:12px; flex-direction:column; }
-  
-  /* léger margin autour du post-frame */
-  .post-frame { 
-    width:90%; max-width:420px; height:480px; 
-    margin: 8px; /* <-- léger margin */
-  }
-
-  #log { font-size:0.85em; min-height:150px; }
+#quizOverlay {
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.75);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+  padding:18px;
 }
 
+#quizContent {
+  width:min(920px,100%);
+  max-height:calc(100vh-36px);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  overflow:auto;
+}
+
+#quizBox {
+  background:#222;
+  padding:22px;
+  border-radius:20px;
+  color:white;
+  text-align:center;
+}
+
+#quizResults {
+  color:white;
+  text-align:left;
+  background:#333;
+  padding:18px;
+  border-radius:12px;
+}
+
+.option-btn {
+  padding:15px;
+  border:none;
+  border-radius:10px;
+  background:#9b59b6;
+  color:white;
+  cursor:pointer;
+  font-size:1.05em;
+  width:100%;
+}
+
+#replayBtn {
+  margin-top:14px;
+  cursor:pointer;
+  font-weight:bold;
+  color:#9b59b6;
+  text-align:center;
+}
+
+/* MOBILE */
+@media(max-width:860px){
+
+  .app {
+    flex-direction:column;
+    height:100vh;
+  }
+
+  .image-area {
+    flex:1;
+    justify-content:center;
+  }
+
+  .ai-section {
+    flex:1;
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    padding:12px;
+  }
+
+  .post-frame {
+    width:90%;
+    max-width:420px;
+    height:60vh;
+    margin:8px;
+  }
+
+  /* icônes sur bord comme TikTok */
+  .icons { right:10px; }
+
+  #log {
+    font-size:0.85em;
+    min-height:120px;
+  }
 }
 </style>
 </head>
@@ -193,3 +314,4 @@ init();
 </script>
 </body>
 </html>
+
