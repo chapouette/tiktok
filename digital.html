@@ -181,7 +181,9 @@ html, body {
 }
 
 /* MOBILE */
-@media(max-width:860px){
+
+
+  @media(max-width:860px){
 
   .app {
     flex-direction:column;
@@ -189,7 +191,8 @@ html, body {
   }
 
   .image-area {
-    flex:1;
+    flex:0 0 auto;
+    height:60vh;
     justify-content:center;
   }
 
@@ -199,21 +202,22 @@ html, body {
     max-width:100%;
     min-width:0;
     padding:12px;
+    min-height:140px;
   }
 
   .post-frame {
     width:90%;
     max-width:420px;
-    height:60vh;
+    height:100%;
+    max-height:420px;
     margin:8px;
   }
 
-  /* icônes sur bord comme TikTok */
   .icons { right:10px; }
 
   #log {
     font-size:0.85em;
-    min-height:120px;
+    min-height:100px;
   }
 }
 </style>
@@ -278,12 +282,34 @@ document.getElementById('log').innerHTML=''; document.getElementById('quizBox').
 document.getElementById('quizOverlay').style.display='none'; showPost(currentIndex); toggleInteraction(true); }
 
 function markPostShownNow(){postShownAt=performance.now();}
-function showPost(idx){ currentPost=shuffledContent[idx];
-const mediaHost=document.getElementById('postMedia'); mediaHost.innerHTML=''; let el;
-if(currentPost.type==="img"){ el=document.createElement('img'); el.src=currentPost.src; el.alt=currentPost.cat||"Post"; el.onload=()=>markPostShownNow(); el.onerror=()=>markPostShownNow();
-mediaHost.appendChild(el); requestAnimationFrame(()=>{ el.style.opacity=1; }); setTimeout(()=>{ if(!postShownAt) markPostShownNow(); },0); return;}
-if(currentPost.type==="iframe"){ el=document.createElement('iframe'); el.src=currentPost.src; el.allowFullscreen=true; el.onload=()=>markPostShownNow();
-mediaHost.appendChild(el); requestAnimationFrame(()=>{ el.style.opacity=1; }); setTimeout(()=>{ if(!postShownAt) markPostShownNow(); },150); return;} }
+function showPost(idx){ function showPost(idx){
+  currentPost = shuffledContent[idx];
+
+  const mediaHost = document.getElementById('postMedia');
+  mediaHost.innerHTML = '';
+
+  // ✅ on démarre le chrono immédiatement
+  postShownAt = performance.now();
+
+  let el;
+
+  if(currentPost.type === "img"){
+    el = document.createElement('img');
+    el.src = currentPost.src;
+    el.alt = currentPost.cat || "Post";
+    mediaHost.appendChild(el);
+    return;
+  }
+
+  if(currentPost.type === "iframe"){
+    el = document.createElement('iframe');
+    el.src = currentPost.src;
+    el.allowFullscreen = true;
+    mediaHost.appendChild(el);
+    return;
+  }
+}
+
 
 function appendLog(html){
   const log=document.getElementById('log');
@@ -314,4 +340,3 @@ init();
 </script>
 </body>
 </html>
-
