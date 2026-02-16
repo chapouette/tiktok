@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>Intro TikTok-Simulator</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   html, body {
     margin:0;
@@ -68,10 +69,40 @@
     0% { transform: translateY(0); }
     100% { transform: translateY(-15px); }
   }
+
+  /* --- MOBILE LAYOUT --- */
+  @media(max-width:860px){
+    body {
+      padding: 1em;
+    }
+
+    h1 {
+      font-size:2em;
+    }
+
+    p {
+      font-size:0.9em;
+      line-height:1.4em;
+    }
+
+    .emoji {
+      font-size:2.5em;
+    }
+
+    button {
+      padding: 0.7em 1.5em;
+      font-size:0.75em;
+    }
+
+    .content{
+      margin:15px;
+    }
+  }
+
 </style>
 </head>
 <body>
-  <div>
+  <div class="content">
     <div class="emoji">🤖📱🎯</div>
     <h1>Wie dich die KI sieht</h1>
     <p>Jeder Klick, den du in sozialen Netzwerken machst, erzählt der KI ein bisschen mehr über dich. Deine Likes, Kommentare und Shares formen, was sie über deine Interessen denkt!</p>
